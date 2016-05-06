@@ -25,24 +25,17 @@
     [self loadScrollView];
     [self loadPageControl];
     [self loadTimer];
+    [self loadData];
     
 }
 
 
 -(void)loadScrollView{
-    UIImageView *myImageView = nil;
     
     _myScrollView = [[UIScrollView alloc]initWithFrame:CGRectMake(0, 20, self.view.frame.size.width, 250)];
     _myScrollView.backgroundColor = [UIColor redColor];
     _myScrollView.pagingEnabled = YES;
-    for (int i = 0; i <= 3; i++) {
-        myImageView = [[UIImageView alloc]initWithFrame:CGRectMake(i * myImageView.frame.size.width, 0, self.view.frame.size.width, 250)];
-        UIImage *image = [UIImage imageNamed:[NSString stringWithFormat:@"h%d.jpg",i+1]];
-        myImageView.image = image ;
-        [_myScrollView addSubview:myImageView];
-    }
-    _myScrollView.contentSize = CGSizeMake(myImageView.frame.size.width * 4, myImageView.frame.size.height) ;
-    
+    _myScrollView.contentSize = CGSizeMake(self.view.frame.size.width * 3, self.view.frame.size.height) ;
     self.myScrollView.delegate = self;
     [self.view addSubview:_myScrollView];
 }
@@ -66,21 +59,79 @@
 
 -(void)changeImage:(NSTimer *)timer{
     
-    NSUInteger pageNum = self.myPageControl.currentPage;
-    CGPoint offset = self.myScrollView.contentOffset;
-    
-    if (pageNum >= 3) {
-        pageNum = 0;
-        offset.x = 0;
-    }else{
-        pageNum += 1;
-        offset.x += self.myScrollView.frame.size.width;
+    if (!_myScrollView.isDragging)
+    {
+        CGPoint newOffset = CGPointMake(_myScrollView.contentOffset.x + CGRectGetWidth(_myScrollView.frame), _myScrollView.contentOffset.y);
+        
+        if ((int)newOffset.x%(int)CGRectGetWidth(_myScrollView.frame) != 0)
+        {
+            newOffset.x = (_myPageControl.currentPage+1)*CGRectGetWidth(_myScrollView.frame);
+        };
+        
+        [_myScrollView setContentOffset:newOffset animated:YES];
+        self.myPageControl.currentPage = newOffset.x / self.myScrollView.frame.size.width;
+        //DebugNSLog(@"autoPlayAds %@", self);
     }
-    self.myPageControl.currentPage = pageNum;
-    [self.myScrollView setContentOffset:offset animated:YES];
+}
+
+-(void)loadData{
+    
+    NSUInteger pageNum = self.myPageControl.currentPage;
+    NSArray *imageViews = [self getCurrentImage:pageNum];
+    
+    for (int i = 0; i < imageViews.count; i++) {
+//        [_myScrollView addSubview:imageViews[i]];
+        UIView *v = [imageViews objectAtIndex:i];
+        v.frame = CGRectMake(v.frame.size.width*i,
+                             0,
+                             v.frame.size.width,
+                             v.frame.size.height);//CGRectOffset(v.frame, v.frame.size.width * i, 0);
+        v.clipsToBounds = YES;
+        [_myScrollView addSubview:v];
+    }
+    
+    
+//    CGPoint offset = self.myScrollView.contentOffset;
+//    
+//    if (pageNum >= 3) {
+//        pageNum = 0;
+//        offset.x = 0;
+//    }else{
+//        pageNum += 1;
+//        offset.x += self.myScrollView.frame.size.width;
+//    }
+//    self.myPageControl.currentPage = pageNum;
+//    [self.myScrollView setContentOffset:offset animated:YES];
 }
 
 
+-(NSArray *) getCurrentImage:(NSUInteger )currentPageNum{
+    
+    NSInteger prePageNum = currentPageNum - 1;
+    NSUInteger nextPageNum = currentPageNum + 1;
+    NSMutableArray *views = [[NSMutableArray alloc]initWithCapacity:3];
+    
+    if (prePageNum < 0) {
+        prePageNum = 3;
+    }
+    if (nextPageNum > 3) {
+        nextPageNum = 0;
+    }
+    
+    [views addObject:[self loadImageWithPageNum:prePageNum]];
+    [views addObject:[self loadImageWithPageNum:currentPageNum]];
+    [views addObject:[self loadImageWithPageNum:nextPageNum]];
+    return views;
+}
+
+-(UIView *) loadImageWithPageNum:(NSInteger )pageNum{
+    UIImage *image = [UIImage imageNamed: [NSString stringWithFormat:@"h%ld.jpg",(long)pageNum + 1]];
+    UIImageView *imageView = [[UIImageView alloc]initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, CGRectGetHeight(self.view.frame))];
+    imageView.image = image;
+    return imageView;
+}
+
+#pragma scroll View Delegate
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView{
     //使定时器失效
     [self.myTimer invalidate];
