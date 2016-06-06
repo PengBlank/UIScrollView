@@ -13,6 +13,7 @@
 @property(nonatomic, strong)UIScrollView *myScrollView;
 @property(nonatomic, strong)UIPageControl *myPageControl;
 @property(nonatomic, assign)NSInteger currentPage;
+@property(nonatomic, strong)NSMutableArray *views;
 @property(nonatomic, strong)NSTimer *myTimer;
 
 @end
@@ -27,18 +28,25 @@
     [self loadPageControl];
     [self loadTimer];
     [self loadData];
-    
+//    [self.myScrollView setContentOffset:CGPointMake(self.view.frame.size.width,0) animated:NO];
 }
 
 
 -(void)loadScrollView{
     
+    self.views = [[NSMutableArray alloc]initWithCapacity:3];
     _myScrollView = [[UIScrollView alloc]initWithFrame:CGRectMake(0, 20, self.view.frame.size.width, 250)];
     _myScrollView.backgroundColor = [UIColor redColor];
     _myScrollView.pagingEnabled = YES;
     _myScrollView.contentSize = CGSizeMake(self.view.frame.size.width * 3, self.myScrollView.frame.size.height) ;
     self.myScrollView.delegate = self;
+    self.myScrollView.showsHorizontalScrollIndicator = NO;
     [self.view addSubview:_myScrollView];
+    for (int i = 0; i < 3; i++) {
+        UIImageView *imageView = [[UIImageView alloc]initWithFrame:CGRectMake(self.myScrollView.frame.size.width * i, 0,self.myScrollView.frame.size.width, self.myScrollView.frame.size.height)];
+//        [self.views insertObject:imageView atIndex:i];
+        [_myScrollView addSubview:imageView];
+    }
 }
 
 -(void)loadPageControl{
@@ -63,49 +71,60 @@
     
     if (!_myScrollView.isDragging)
     {
-        CGPoint newOffset = CGPointMake(CGRectGetWidth(_myScrollView.frame), _myScrollView.contentOffset.y);
         
-        if ((int)newOffset.x%(int)CGRectGetWidth(_myScrollView.frame) != 0)
-        {
-            newOffset.x = (_myPageControl.currentPage+1)*CGRectGetWidth(_myScrollView.frame);
-        };
+        NSInteger page = self.myPageControl.currentPage; // 获取当前的page
         
-        [_myScrollView setContentOffset:newOffset animated:YES];
-//        self.myPageControl.currentPage = newOffset.x / self.myScrollView.frame.size.width;
-//        [self getCurrentImage:(newOffset.x / self.myScrollView.frame.size.width) ];
-//        [self loadData];
-        //DebugNSLog(@"autoPlayAds %@", self);
+        page++;
+        self.currentPage = page > 2 ? 0 : page ;
+        [self.myScrollView setContentOffset:CGPointMake(320*(page+1),0) animated:YES];
+//        if (_myScrollView.contentOffset.x >= self.myScrollView.frame.size.width ) {
+//            _currentPage++;
+//            if (_currentPage > 3) {
+//                _currentPage = 0;
+//            }
+//            self.myPageControl.currentPage = _currentPage;
+//            [self getCurrentImage:self.currentPage];
+//            //刷新图片
+//            [self loadData];
+//            
+//        }else if(_myScrollView.contentOffset.x < 0){
+//            _currentPage--;
+//            if (_currentPage < 0) {
+//                _currentPage = 3;
+//            }
+//            self.myPageControl.currentPage = _currentPage;
+//            [self getCurrentImage:_currentPage];
+//            [self loadData];
+//        }
+
     }
 } 
 
 -(void)loadData{
     
-    NSUInteger pageNum = self.myPageControl.currentPage;
-    NSArray *imageViews = [self getCurrentImage:pageNum];
-    
-    for (int i = 0; i < imageViews.count; i++) {
-//        [_myScrollView addSubview:imageViews[i]];
-        UIView *v = [imageViews objectAtIndex:i];
-        v.frame = CGRectMake(v.frame.size.width*i,
-                             0,
-                             v.frame.size.width,
-                             v.frame.size.height);//CGRectOffset(v.frame, v.frame.size.width * i, 0);
-        v.clipsToBounds = YES;
-        [_myScrollView addSubview:v];
-    }
-     [_myScrollView setContentOffset:CGPointMake(_myScrollView.frame.size.width, 0) animated:NO];
-//    self.myPageControl.currentPage = 0;
-//    CGPoint offset = self.myScrollView.contentOffset;
-//
-//    if (pageNum >= 3) {
-//        pageNum = 0;
-//        offset.x = 0;
-//    }else{
-//        pageNum += 1;
-//        offset.x += self.myScrollView.frame.size.width;
+//    NSUInteger pageNum = self.myPageControl.currentPage;
+//    for (UIView *view  in self.view.subviews) {
+//        view mo
 //    }
-//    self.myPageControl.currentPage = pageNum;
-//    [self.myScrollView setContentOffset:offset animated:YES];
+    NSArray *subViews = self.myScrollView.subviews;
+    if ([subViews count] > 0) {
+        for (UIView *view in subViews) {
+            if ([view isMemberOfClass:[UIImageView class]]) {
+                [subViews makeObjectsPerformSelector:@selector(removeFromSuperview)];
+            }
+        }
+    }
+    
+    NSArray *imagesForShow = [self getCurrentImage:self.currentPage];
+    
+    for (int i = 0; i < 3; i++) {
+//        UIView *view = [self.views objectAtIndex:i];
+        UIView *view = subViews[i];
+//        view.frame = CGRectOffset(view.frame, view.frame.size.width * i, 0);
+        [(UIImageView *)view setImage:imagesForShow[i]];
+        [self.myScrollView addSubview:view];
+    }
+     [_myScrollView setContentOffset:CGPointMake(_myScrollView.frame.size.width, 0)];
 }
 
 
@@ -113,7 +132,7 @@
     
     NSInteger prePageNum = currentPageNum - 1;
     NSUInteger nextPageNum = currentPageNum + 1;
-    NSMutableArray *views = [[NSMutableArray alloc]initWithCapacity:3];
+    NSMutableArray *images = [[NSMutableArray alloc]initWithCapacity:3];
     
     if (prePageNum < 0) {
         prePageNum = 3;
@@ -122,77 +141,55 @@
         nextPageNum = 0;
     }
     
-    [views addObject:[self loadImageWithPageNum:prePageNum]];
-    [views addObject:[self loadImageWithPageNum:currentPageNum]];
-    [views addObject:[self loadImageWithPageNum:nextPageNum]];
-    return views;
+    [images addObject:[self loadImage:prePageNum]];
+    [images addObject:[self loadImage:currentPageNum]];
+    [images addObject:[self loadImage:nextPageNum]];
+    return images;
 }
 
--(UIView *) loadImageWithPageNum:(NSInteger )pageNum{
+
+-(UIImage *) loadImage:(NSInteger)pageNum{
     UIImage *image = [UIImage imageNamed: [NSString stringWithFormat:@"h%ld.jpg",(long)pageNum + 1]];
-    UIImageView *imageView = [[UIImageView alloc]initWithFrame:CGRectMake(0, 0, self.view.frame.size.width, CGRectGetHeight(self.myScrollView.frame))];
-    imageView.image = image;
-    return imageView;
+    return image;
 }
 
 #pragma scroll View Delegate
 
-
-- (void)scrollViewDidScroll:(UIScrollView *)scrollView
-{
-    //如果scrollView当前偏移位置x大于等于两倍scrollView宽度
-    if (_myScrollView.contentOffset.x >= self.myScrollView.frame.size.width * 2) {
-        //当前图片位置+1
-        _currentPage++;
-        //如果当前图片位置超过数组边界，则设置为0
-//        if (_currentPage == [self.imageArray count]) {
-//            _currentPage = 0;
-//        }
-        [self getCurrentImage:self.currentPage];
-        //刷新图片
+-(void)scrollViewDidScroll:(UIScrollView *)scrollView{
+    int x = _myScrollView.contentOffset.x;
+    //往下翻一张
+    if(x >= (2 * self.view.frame.size.width)) {
+        self.currentPage++;
         [self loadData];
-        //设置scrollView偏移位置
-//        [_myScrollView setContentOffset:CGPointMake(c_width, 0)];
     }
-    
-    //如果scrollView当前偏移位置x小于等于0
-    else if (_myScrollView.contentOffset.x <= 0) {
-        //当前图片位置-1
-        _currentPage--;
-        [self getCurrentImage:_currentPage];
-        //如果当前图片位置小于数组边界，则设置为数组最后一张图片下标
-//        if (_currentPage == -1) {
-//            _currentPage = [self.imageArray count]-1;
-//        }
-        //刷新图片
+    //往上翻
+    if(x <= 0) {
+        self.currentPage--;
         [self loadData];
-        //设置scrollView偏移位置
-//        [_myScrollView setContentOffset:CGPointMake(c_width, 0)];
     }
 }
 
 
-
-
-
-
-
-
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)aScrollView {
+    
+    [_myScrollView setContentOffset:CGPointMake(_myScrollView.frame.size.width, 0) animated:YES];
+    
+}
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView{
     //使定时器失效
     [self.myTimer invalidate];
 }
 
-//根据偏移量获取当前页码
-- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
-    //获取偏移量
-    CGPoint offset=scrollView.contentOffset;
-    //计算当前页码
-    NSInteger currentPage=offset.x / self.myScrollView.frame.size.width;
-    //设置当前页码
-    self.myPageControl.currentPage=currentPage;
-    
-}
+////根据偏移量获取当前页码
+//- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
+//    //获取偏移量
+//    CGPoint offset=scrollView.contentOffset;
+//    //计算当前页码
+//    NSInteger currentPage=offset.x / self.myScrollView.frame.size.width;
+//    //设置当前页码
+//    self.myPageControl.currentPage=currentPage;
+//    
+//}
 
 //设置代理方法,当拖拽结束的时候,调用计时器,让其继续自动滚动
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate{
